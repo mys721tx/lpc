@@ -23,10 +23,13 @@ import (
 	"log"
 	"os"
 	"strings"
+
+	"github.com/miekg/dns"
 )
 
 var (
-	pin, pout string
+	pin, pout      string
+	resolver, port string
 )
 
 func main() {
@@ -43,6 +46,21 @@ func main() {
 		"",
 		"path to the output file, default to stdout.",
 	)
+
+	flag.StringVar(
+		&resolver,
+		"dns",
+		"8.8.8.8",
+		"IP address of the resolver, default to 8.8.8.8.",
+	)
+
+	flag.StringVar(
+		&port,
+		"port",
+		"53",
+		"port of the resolver, default to 53",
+	)
+
 	flag.Parse()
 
 	var fin, fout *os.File
@@ -99,6 +117,9 @@ func main() {
 			if i != 0 &&
 				!strings.HasPrefix(f, "#") &&
 				!strings.HasPrefix(f, ";") {
+				if !strings.HasSuffix(f, ".") {
+					f = f + "."
+				}
 				names[f] = true
 			}
 		}
@@ -108,7 +129,31 @@ func main() {
 		fmt.Fprintln(os.Stderr, "reading standard input:", err)
 	}
 
+	c := new(dns.Client)
+
 	for f, _ := range names {
-		fmt.Fprintln(w, f)
+		var b strings.Builder
+
+		b.WriteString("www.")
+		b.WriteString(f)
+		prefixed := b.String()
+
+		if _, exist := names[prefixed]; !exist && !strings.HasPrefix(f, "www.") {
+			m := new(dns.Msg)
+			m.SetQuestion(prefixed, dns.TypeA)
+			in, _, err := c.Exchange(m, resolver+":"+port)
+
+			if err != nil {
+				fmt.Fprintf(
+					os.Stderr,
+					"error processing domain %s: %s\n",
+					f,
+					err,
+				)
+			} else if len(in.Answer) > 0 {
+				fmt.Fprintln(w, prefixed)
+			}
+
+		}
 	}
 }
