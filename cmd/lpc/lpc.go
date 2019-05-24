@@ -32,6 +32,10 @@ var (
 	resolver, port string
 )
 
+const (
+	prefix = "www."
+)
+
 func main() {
 	flag.StringVar(
 		&pin,
@@ -62,6 +66,8 @@ func main() {
 	)
 
 	flag.Parse()
+
+	addr := resolver + ":" + port
 
 	var fin, fout *os.File
 
@@ -132,22 +138,19 @@ func main() {
 	c := new(dns.Client)
 
 	for f, _ := range names {
-		var b strings.Builder
+		prefixed := prefix + f
 
-		b.WriteString("www.")
-		b.WriteString(f)
-		prefixed := b.String()
-
-		if _, exist := names[prefixed]; !exist && !strings.HasPrefix(f, "www.") {
+		if _, exist := names[prefixed]; !exist && !strings.HasPrefix(f, prefix) {
 			m := new(dns.Msg)
 			m.SetQuestion(prefixed, dns.TypeA)
-			in, _, err := c.Exchange(m, resolver+":"+port)
+			in, _, err := c.Exchange(m, addr)
 
 			if err != nil {
-				fmt.Fprintf(
+				fmt.Fprintln(
 					os.Stderr,
-					"error processing domain %s: %s\n",
+					"error processing domain ",
 					f,
+					": ",
 					err,
 				)
 			} else if len(in.Answer) > 0 {
