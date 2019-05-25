@@ -8,7 +8,8 @@ By [Yishen Miao](https://github.com/mys721tx)
 ## Description
 
 The **leaky prefix checker** checks for domain names that escapes a hosts block
-list through `www.` prefix.
+list through `www.` prefix. See the
+[documentation](https://godoc.org/github.com/mys721tx/lpc) for detail.
 
 ## License
 

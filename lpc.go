@@ -33,12 +33,8 @@ import (
 var (
 	pin, pout      string
 	resolver, port string
-	tgt            string
-	sleep          int64
-)
-
-const (
-	prefix = "www."
+	tgt, prefix    string
+	sleep, timeout int64
 )
 
 func main() {
@@ -71,6 +67,20 @@ func main() {
 	)
 
 	flag.StringVar(
+		&prefix,
+		"prefix",
+		"www.",
+		"prefix to check for each hosts entry, default to www.",
+	)
+
+	flag.Int64Var(
+		&timeout,
+		"timeout",
+		10,
+		"timeout for each DNS query, default to 10s",
+	)
+
+	flag.StringVar(
 		&tgt,
 		"tgt",
 		"0.0.0.0",
@@ -79,7 +89,7 @@ func main() {
 
 	flag.Int64Var(
 		&sleep,
-		"time",
+		"sleep",
 		100,
 		"time between DNS query, default to 100ms",
 	)
@@ -130,11 +140,9 @@ func main() {
 	names := make(map[string]bool)
 
 	c := new(dns.Client)
-	c.ReadTimeout = 5 * time.Second
+	c.Timeout = time.Duration(timeout) * time.Second
 
 	for scn.Scan() {
-		tmpNames := make(map[string]bool)
-
 		line := scn.Text()
 
 		ip, hns, cmt := hosts.ParseLine(line)
@@ -153,6 +161,21 @@ func main() {
 				in, _, err := c.Exchange(m, addr)
 				time.Sleep(time.Duration(sleep) * time.Millisecond)
 
+				var b strings.Builder
+
+				b.WriteString(
+					fmt.Sprintf(
+						"%s %s",
+						ip,
+						strings.TrimSuffix(fld, "."),
+					),
+				)
+
+				if cmt != "" {
+					b.WriteString(" #")
+					b.WriteString(cmt)
+				}
+
 				if err != nil {
 					fmt.Fprintln(
 						os.Stderr,
@@ -160,22 +183,7 @@ func main() {
 						fld,
 						err,
 					)
-					names[fld] = false
 				} else {
-					var b strings.Builder
-
-					b.WriteString(
-						fmt.Sprintf(
-							"%s %s",
-							ip,
-							strings.TrimSuffix(fld, "."),
-						),
-					)
-
-					if cmt != "" {
-						b.WriteString(" #")
-						b.WriteString(cmt)
-					}
 
 					if in.MsgHdr.Rcode != dns.RcodeSuccess {
 						if cmt == "" {
@@ -185,24 +193,21 @@ func main() {
 							dns.RcodeToString[in.MsgHdr.Rcode],
 						)
 					}
+				}
+
+				if _, exist := names[fld]; !exist {
 					fmt.Fprintln(w, b.String())
 					names[fld] = true
 				}
 			}
-
-			if !strings.HasPrefix(fld, prefix) {
-				tmpNames[fld] = true
-			}
 		}
 
-		for dom, _ := range tmpNames {
+		for _, dom := range hns {
 			domPfx := prefix + dom
 
 			if _, exist := names[domPfx]; exist {
 				continue
 			}
-
-			names[domPfx] = false
 
 			m := new(dns.Msg)
 			m.SetQuestion(dns.Fqdn(domPfx), dns.TypeA)

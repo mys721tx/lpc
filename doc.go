@@ -29,11 +29,15 @@
 			path to the hosts file, default to stdin.
 		-port string
 			port of the resolver, default to 53
+		-prefix string
+			prefix to check for each hosts entry, default to www.
 		-out string
 			path to the output file, default to stdout.
+		-timeout int64
+			timeout for each DNS query, default to 10s
 		-tgt string
 			target IP address of the blocked entry, default to 0.0.0.0
-		-time int64
+		-sleep int64
 			time between DNS query, default to 100ms
 	Example:
 		cat /etc/hosts | lpc
