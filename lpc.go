@@ -30,6 +30,7 @@ import (
 var (
 	pin, pout      string
 	resolver, port string
+	tgt            string
 )
 
 const (
@@ -41,7 +42,7 @@ func main() {
 		&pin,
 		"in",
 		"",
-		"path to the host file, default to stdin.",
+		"path to the hosts file, default to stdin.",
 	)
 
 	flag.StringVar(
@@ -63,6 +64,13 @@ func main() {
 		"port",
 		"53",
 		"port of the resolver, default to 53",
+	)
+
+	flag.StringVar(
+		&tgt,
+		"tgt",
+		"0.0.0.0",
+		"target IP address of the blocked entry, default to 0.0.0.0",
 	)
 
 	flag.Parse()
@@ -110,15 +118,23 @@ func main() {
 
 	names := make(map[string]bool)
 
+	c := new(dns.Client)
+
 	for scn.Scan() {
+		tmpNames := make(map[string]bool)
+
 		line := scn.Text()
 
+		fmt.Fprintln(w, line)
+
+		// Do not further process empty or commented line.
 		if line == "" ||
 			strings.HasPrefix(line, "#") ||
 			strings.HasPrefix(line, ";") {
 			continue
 		}
 
+		// Process multi entry lines
 		for i, f := range strings.Fields(line) {
 			if i != 0 &&
 				!strings.HasPrefix(f, "#") &&
@@ -126,37 +142,37 @@ func main() {
 				if !strings.HasSuffix(f, ".") {
 					f = f + "."
 				}
+				tmpNames[f] = true
 				names[f] = true
+			}
+		}
+
+		for f, _ := range tmpNames {
+			prefixed := prefix + f
+
+			if _, exist := names[prefixed]; !exist && !strings.HasPrefix(f, prefix) {
+				names[prefixed] = true
+
+				m := new(dns.Msg)
+				m.SetQuestion(prefixed, dns.TypeA)
+				in, _, err := c.Exchange(m, addr)
+
+				if err != nil {
+					fmt.Fprintln(
+						os.Stderr,
+						"error processing domain",
+						prefixed,
+						err,
+					)
+				} else if len(in.Answer) > 0 {
+					fmt.Fprintln(w, tgt, strings.TrimSuffix(prefixed, "."))
+				}
+
 			}
 		}
 	}
 
 	if err := scn.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "reading standard input:", err)
-	}
-
-	c := new(dns.Client)
-
-	for f, _ := range names {
-		prefixed := prefix + f
-
-		if _, exist := names[prefixed]; !exist && !strings.HasPrefix(f, prefix) {
-			m := new(dns.Msg)
-			m.SetQuestion(prefixed, dns.TypeA)
-			in, _, err := c.Exchange(m, addr)
-
-			if err != nil {
-				fmt.Fprintln(
-					os.Stderr,
-					"error processing domain ",
-					f,
-					": ",
-					err,
-				)
-			} else if len(in.Answer) > 0 {
-				fmt.Fprintln(w, prefixed)
-			}
-
-		}
 	}
 }
