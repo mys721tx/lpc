@@ -5,7 +5,7 @@ DESTDIR :=
 
 MAJORVERSION := 0
 MINORVERSION ?= 2
-PATCHVERSION := 1
+PATCHVERSION := 2
 VERSION ?= ${MAJORVERSION}.${MINORVERSION}.${PATCHVERSION}
 
 LDFLAGS := -ldflags '-s -w -X main.version=${VERSION}'
@@ -37,8 +37,8 @@ uninstall:
 test:
 	gofmt -l *.go
 	@test -z "$$(gofmt -l *.go)" || (echo "Files need to be linted" && false)
-	go vet ${MOD}
-	go test -v ${MOD}
+	go vet ${MOD} ./...
+	go test -v ${MOD} ./...
 
 build:
 	go build -v ${LDFLAGS} -o ${BINNAME} ${MOD}

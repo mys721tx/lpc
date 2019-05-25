@@ -21,22 +21,16 @@ Outerloop:
 		switch state {
 		case StateStart:
 			switch c {
-			case ';':
-				fallthrough
-			case '#':
+			case ';', '#':
 				state = StateComment
 			default:
 				state = StateIP
 			}
 		case StateWhiteSpace:
 			switch c {
-			case ';':
-				fallthrough
-			case '#':
+			case ';', '#':
 				state = StateComment
-			case ' ':
-				fallthrough
-			case '\t':
+			case ' ', '\t':
 				continue
 			default:
 				state = StateHostName
@@ -44,17 +38,13 @@ Outerloop:
 			}
 		case StateIP:
 			switch c {
-			case '\t':
-				fallthrough
-			case ' ':
+			case '\t', ' ':
 				state = StateWhiteSpace
 				ip = line[:i]
 			}
 		case StateHostName:
 			switch c {
-			case '\t':
-				fallthrough
-			case ' ':
+			case '\t', ' ':
 				state = StateWhiteSpace
 				hosts = append(hosts, line[start:i])
 			}

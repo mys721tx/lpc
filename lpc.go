@@ -26,6 +26,8 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+
+	"github.com/mys721tx/lpc/pkg/hosts"
 )
 
 var (
@@ -38,28 +40,6 @@ var (
 const (
 	prefix = "www."
 )
-
-// splitLine takes a hosts file line and returns it in two parts. The second
-// part is the comment, started with "#" or ";", which ever comes first.
-func splitLine(line string) (string, string) {
-	iPnd := strings.Index(line, "#")
-	iSmc := strings.Index(line, ";")
-
-	if iPnd < iSmc {
-		if iPnd > -1 {
-			return line[:iPnd], line[iPnd:]
-		} else {
-			return line[:iSmc], line[iSmc:]
-		}
-	} else if iSmc < iPnd {
-		if iSmc > -1 {
-			return line[:iSmc], line[iSmc:]
-		} else {
-			return line[:iPnd], line[iPnd:]
-		}
-	}
-	return line, ""
-}
 
 func main() {
 	flag.StringVar(
@@ -157,65 +137,61 @@ func main() {
 
 		line := scn.Text()
 
+		ip, hns, cmt := hosts.ParseLine(line)
+
 		// Do not further process empty or commented line.
-		if line == "" ||
-			strings.HasPrefix(line, "#") ||
-			strings.HasPrefix(line, ";") {
+		if ip == "" {
 			fmt.Fprintln(w, line)
 			continue
 		}
 
-		entry, comment := splitLine(line)
-
 		// Process multi entry lines
-		for i, fld := range strings.Fields(entry) {
-			if i != 0 {
-				if written, exist := names[fld]; !exist || !written {
-					m := new(dns.Msg)
-					m.SetQuestion(dns.Fqdn(fld), dns.TypeA)
-					in, _, err := c.Exchange(m, addr)
-					time.Sleep(time.Duration(sleep) * time.Millisecond)
+		for _, fld := range hns {
+			if written, exist := names[fld]; !exist || !written {
+				m := new(dns.Msg)
+				m.SetQuestion(dns.Fqdn(fld), dns.TypeA)
+				in, _, err := c.Exchange(m, addr)
+				time.Sleep(time.Duration(sleep) * time.Millisecond)
 
-					if err != nil {
-						fmt.Fprintln(
-							os.Stderr,
-							"error processing domain",
-							fld,
-							err,
-						)
-						names[fld] = false
-					} else {
-						var b strings.Builder
+				if err != nil {
+					fmt.Fprintln(
+						os.Stderr,
+						"error processing domain",
+						fld,
+						err,
+					)
+					names[fld] = false
+				} else {
+					var b strings.Builder
 
-						b.WriteString(
-							fmt.Sprintf(
-								"%s %s",
-								tgt,
-								strings.TrimSuffix(fld, "."),
-							),
-						)
+					b.WriteString(
+						fmt.Sprintf(
+							"%s %s",
+							ip,
+							strings.TrimSuffix(fld, "."),
+						),
+					)
 
-						if comment != "" {
-							b.WriteString(" ")
-							b.WriteString(comment)
-						}
-
-						if in.MsgHdr.Rcode != dns.RcodeSuccess {
-							if comment == "" {
-								b.WriteString(" #")
-							}
-							b.WriteString(
-								dns.RcodeToString[in.MsgHdr.Rcode],
-							)
-						}
-						fmt.Fprintln(w, b.String())
-						names[fld] = true
+					if cmt != "" {
+						b.WriteString(" #")
+						b.WriteString(cmt)
 					}
-				}
 
-				if !strings.HasPrefix(fld, prefix) {
-					tmpNames[fld] = true
+					if in.MsgHdr.Rcode != dns.RcodeSuccess {
+						if cmt == "" {
+							b.WriteString(" #")
+						}
+						b.WriteString(
+							dns.RcodeToString[in.MsgHdr.Rcode],
+						)
+					}
+					fmt.Fprintln(w, b.String())
+					names[fld] = true
 				}
+			}
+
+			if !strings.HasPrefix(fld, prefix) {
+				tmpNames[fld] = true
 			}
 		}
 
