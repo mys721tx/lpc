@@ -150,6 +150,7 @@ func main() {
 	names := make(map[string]bool)
 
 	c := new(dns.Client)
+	c.ReadTimeout = 5 * time.Second
 
 	for scn.Scan() {
 		tmpNames := make(map[string]bool)
