@@ -169,13 +169,9 @@ func main() {
 		// Process multi entry lines
 		for i, fld := range strings.Fields(entry) {
 			if i != 0 {
-				if !strings.HasSuffix(fld, ".") {
-					fld += "."
-				}
-
 				if written, exist := names[fld]; !exist || !written {
 					m := new(dns.Msg)
-					m.SetQuestion(fld, dns.TypeA)
+					m.SetQuestion(dns.Fqdn(fld), dns.TypeA)
 					in, _, err := c.Exchange(m, addr)
 					time.Sleep(time.Duration(sleep) * time.Millisecond)
 
@@ -232,7 +228,7 @@ func main() {
 			names[domPfx] = false
 
 			m := new(dns.Msg)
-			m.SetQuestion(domPfx, dns.TypeA)
+			m.SetQuestion(dns.Fqdn(domPfx), dns.TypeA)
 			in, _, err := c.Exchange(m, addr)
 			time.Sleep(time.Duration(sleep) * time.Millisecond)
 
@@ -244,7 +240,7 @@ func main() {
 					err,
 				)
 			} else if in.MsgHdr.Rcode == dns.RcodeSuccess {
-				fmt.Fprintln(w, tgt, strings.TrimSuffix(domPfx, "."))
+				fmt.Fprintln(w, tgt, domPfx)
 				names[domPfx] = true
 			} else {
 				fmt.Fprintln(
