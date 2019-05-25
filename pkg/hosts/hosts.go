@@ -9,9 +9,9 @@ const (
 )
 
 // ParseLine split a hosts line to three parts.
-// TODO support multiple hostnames in one line.
-func ParseLine(line string) (string, string, string) {
-	var ip, host, comment string
+func ParseLine(line string) (string, []string, string) {
+	var ip, comment string
+	hosts := make([]string, 0)
 
 	state := StateStart
 	start := 0
@@ -56,7 +56,7 @@ Outerloop:
 				fallthrough
 			case ' ':
 				state = StateWhiteSpace
-				host = line[start:i]
+				hosts = append(hosts, line[start:i])
 			}
 		case StateComment:
 			comment = line[i:]
@@ -65,8 +65,8 @@ Outerloop:
 	}
 
 	if state == StateHostName {
-		host = line[start:]
+		hosts = append(hosts, line[start:])
 	}
 
-	return ip, host, comment
+	return ip, hosts, comment
 }
