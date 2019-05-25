@@ -37,6 +37,28 @@ const (
 	prefix = "www."
 )
 
+// splitLine takes a hosts file line and returns it in two parts. The second
+// part is the comment, started with "#" or ";", which ever comes first.
+func splitLine(line string) (string, string) {
+	iPnd := strings.Index(line, "#")
+	iSmc := strings.Index(line, ";")
+
+	if iPnd < iSmc {
+		if iPnd > -1 {
+			return line[:iPnd], line[iPnd:]
+		} else {
+			return line[:iSmc], line[iSmc:]
+		}
+	} else if iSmc < iPnd {
+		if iSmc > -1 {
+			return line[:iSmc], line[iSmc:]
+		} else {
+			return line[:iPnd], line[iPnd:]
+		}
+	}
+	return line, ""
+}
+
 func main() {
 	flag.StringVar(
 		&pin,
@@ -125,50 +147,71 @@ func main() {
 
 		line := scn.Text()
 
-		fmt.Fprintln(w, line)
-
 		// Do not further process empty or commented line.
 		if line == "" ||
 			strings.HasPrefix(line, "#") ||
 			strings.HasPrefix(line, ";") {
+			fmt.Fprintln(w, line)
 			continue
 		}
 
+		entry, comment := splitLine(line)
+
 		// Process multi entry lines
-		for i, f := range strings.Fields(line) {
-			if i != 0 &&
-				!strings.HasPrefix(f, "#") &&
-				!strings.HasPrefix(f, ";") {
-				if !strings.HasSuffix(f, ".") {
-					f = f + "."
+		for i, fld := range strings.Fields(entry) {
+			if i != 0 {
+				if !strings.HasSuffix(fld, ".") {
+					fld += "."
 				}
-				tmpNames[f] = true
-				names[f] = true
+
+				if _, exist := names[fld]; !exist {
+					names[fld] = true
+					if comment != "" {
+						fmt.Fprintln(
+							w,
+							tgt,
+							strings.TrimSuffix(fld, "."),
+							comment,
+						)
+					} else {
+						fmt.Fprintln(
+							w,
+							tgt,
+							strings.TrimSuffix(fld, "."),
+						)
+					}
+				}
+
+				if !strings.HasPrefix(fld, prefix) {
+					tmpNames[fld] = true
+				}
 			}
 		}
 
-		for f, _ := range tmpNames {
-			prefixed := prefix + f
+		for dom, _ := range tmpNames {
+			domPfx := prefix + dom
 
-			if _, exist := names[prefixed]; !exist && !strings.HasPrefix(f, prefix) {
-				names[prefixed] = true
-
-				m := new(dns.Msg)
-				m.SetQuestion(prefixed, dns.TypeA)
-				in, _, err := c.Exchange(m, addr)
-
-				if err != nil {
-					fmt.Fprintln(
-						os.Stderr,
-						"error processing domain",
-						prefixed,
-						err,
-					)
-				} else if len(in.Answer) > 0 {
-					fmt.Fprintln(w, tgt, strings.TrimSuffix(prefixed, "."))
-				}
-
+			if _, exist := names[domPfx]; exist {
+				continue
 			}
+
+			names[domPfx] = true
+
+			m := new(dns.Msg)
+			m.SetQuestion(domPfx, dns.TypeA)
+			in, _, err := c.Exchange(m, addr)
+
+			if err != nil {
+				fmt.Fprintln(
+					os.Stderr,
+					"error processing domain",
+					domPfx,
+					err,
+				)
+			} else if len(in.Answer) > 0 {
+				fmt.Fprintln(w, tgt, strings.TrimSuffix(domPfx, "."))
+			}
+
 		}
 	}
 
