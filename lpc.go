@@ -23,6 +23,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/miekg/dns"
 )
@@ -31,6 +32,7 @@ var (
 	pin, pout      string
 	resolver, port string
 	tgt            string
+	sleep          int64
 )
 
 const (
@@ -93,6 +95,13 @@ func main() {
 		"tgt",
 		"0.0.0.0",
 		"target IP address of the blocked entry, default to 0.0.0.0",
+	)
+
+	flag.Int64Var(
+		&sleep,
+		"time",
+		100,
+		"time between DNS query, default to 100ms",
 	)
 
 	flag.Parse()
@@ -164,21 +173,46 @@ func main() {
 					fld += "."
 				}
 
-				if _, exist := names[fld]; !exist {
-					names[fld] = true
-					if comment != "" {
+				if written, exist := names[fld]; !exist || !written {
+					m := new(dns.Msg)
+					m.SetQuestion(fld, dns.TypeA)
+					in, _, err := c.Exchange(m, addr)
+					time.Sleep(time.Duration(sleep) * time.Millisecond)
+
+					if err != nil {
 						fmt.Fprintln(
-							w,
-							tgt,
-							strings.TrimSuffix(fld, "."),
-							comment,
+							os.Stderr,
+							"error processing domain",
+							fld,
+							err,
 						)
+						names[fld] = false
 					} else {
-						fmt.Fprintln(
-							w,
-							tgt,
-							strings.TrimSuffix(fld, "."),
+						var b strings.Builder
+
+						b.WriteString(
+							fmt.Sprintf(
+								"%s %s",
+								tgt,
+								strings.TrimSuffix(fld, "."),
+							),
 						)
+
+						if comment != "" {
+							b.WriteString(" ")
+							b.WriteString(comment)
+						}
+
+						if in.MsgHdr.Rcode != dns.RcodeSuccess {
+							if comment == "" {
+								b.WriteString(" #")
+							}
+							b.WriteString(
+								dns.RcodeToString[in.MsgHdr.Rcode],
+							)
+						}
+						fmt.Fprintln(w, b.String())
+						names[fld] = true
 					}
 				}
 
@@ -195,11 +229,12 @@ func main() {
 				continue
 			}
 
-			names[domPfx] = true
+			names[domPfx] = false
 
 			m := new(dns.Msg)
 			m.SetQuestion(domPfx, dns.TypeA)
 			in, _, err := c.Exchange(m, addr)
+			time.Sleep(time.Duration(sleep) * time.Millisecond)
 
 			if err != nil {
 				fmt.Fprintln(
@@ -208,8 +243,16 @@ func main() {
 					domPfx,
 					err,
 				)
-			} else if len(in.Answer) > 0 {
+			} else if in.MsgHdr.Rcode == dns.RcodeSuccess {
 				fmt.Fprintln(w, tgt, strings.TrimSuffix(domPfx, "."))
+				names[domPfx] = true
+			} else {
+				fmt.Fprintln(
+					os.Stderr,
+					"error processing domain",
+					domPfx,
+					dns.RcodeToString[in.MsgHdr.Rcode],
+				)
 			}
 
 		}

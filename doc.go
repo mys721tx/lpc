@@ -33,6 +33,8 @@
 			path to the output file, default to stdout.
 		-tgt string
 			target IP address of the blocked entry, default to 0.0.0.0
+		-time int64
+			time between DNS query, default to 100ms
 	Example:
 		cat /etc/hosts | lpc
 		lpc -in /etc/hosts -out hosts.tmp
