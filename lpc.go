@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -32,10 +33,17 @@ import (
 
 var (
 	pin, pout      string
-	resolver, port string
+	host, port     string
 	tgt, prefix    string
 	sleep, timeout int64
 )
+
+func bldJoin(b *strings.Builder, strs ...string) {
+
+	for _, str := range strs {
+		b.WriteString(str)
+	}
+}
 
 func main() {
 	flag.StringVar(
@@ -53,7 +61,7 @@ func main() {
 	)
 
 	flag.StringVar(
-		&resolver,
+		&host,
 		"dns",
 		"8.8.8.8",
 		"IP address of the resolver, default to 8.8.8.8.",
@@ -96,24 +104,24 @@ func main() {
 
 	flag.Parse()
 
-	addr := resolver + ":" + port
+	addr := net.JoinHostPort(host, port)
 
 	var fin, fout *os.File
 
 	if pin == "" {
 		fin = os.Stdin
-	} else if f, err := os.Open(pin); err == nil {
-		fin = f
-	} else {
+	} else if f, err := os.Open(pin); err != nil {
 		log.Panicf("failed to open %q: %v", pin, err)
+	} else {
+		fin = f
 	}
 
 	if pout == "" {
 		fout = os.Stdout
-	} else if f, err := os.Create(pout); err == nil {
-		fout = f
-	} else {
+	} else if f, err := os.Create(pout); err != nil {
 		log.Panicf("failed to open %q: %v", pout, err)
+	} else {
+		fout = f
 	}
 
 	defer func() {
@@ -141,6 +149,7 @@ func main() {
 
 	c := new(dns.Client)
 	c.Timeout = time.Duration(timeout) * time.Second
+	m := new(dns.Msg)
 
 	for scn.Scan() {
 		line := scn.Text()
@@ -155,25 +164,17 @@ func main() {
 
 		// Process multi entry lines
 		for _, fld := range hns {
-			if written, exist := names[fld]; !exist || !written {
-				m := new(dns.Msg)
+			if _, exist := names[fld]; !exist {
 				m.SetQuestion(dns.Fqdn(fld), dns.TypeA)
 				in, _, err := c.Exchange(m, addr)
 				time.Sleep(time.Duration(sleep) * time.Millisecond)
 
 				var b strings.Builder
 
-				b.WriteString(
-					fmt.Sprintf(
-						"%s %s",
-						ip,
-						strings.TrimSuffix(fld, "."),
-					),
-				)
+				bldJoin(&b, ip, " ", fld)
 
 				if cmt != "" {
-					b.WriteString(" #")
-					b.WriteString(cmt)
+					bldJoin(&b, " #", cmt)
 				}
 
 				if err != nil {
@@ -209,7 +210,6 @@ func main() {
 				continue
 			}
 
-			m := new(dns.Msg)
 			m.SetQuestion(dns.Fqdn(domPfx), dns.TypeA)
 			in, _, err := c.Exchange(m, addr)
 			time.Sleep(time.Duration(sleep) * time.Millisecond)
