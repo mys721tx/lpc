@@ -1,7 +1,7 @@
 # Leaky Prefix Checker
 
 [![GoDoc](https://godoc.org/github.com/mys721tx/lpc?status.svg)](https://godoc.org/github.com/mys721tx/lpc)
-[![Build Status](https://travis-ci.com/mys721tx/lpc.svg?branch=master)](https://travis-ci.com/mys721tx/lpc)
+[![Go](https://github.com/mys721tx/lpc/actions/workflows/go_test.yml/badge.svg)](https://github.com/mys721tx/lpc/actions/workflows/go_test.yml)
 
 By [Yishen Miao](https://github.com/mys721tx)
 
