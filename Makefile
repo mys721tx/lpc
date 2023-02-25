@@ -1,12 +1,9 @@
-.PHONY: all default install uninstall test build release clean package
+.PHONY: all default install uninstall test build release clean package version
 
 PREFIX := /usr/local
 DESTDIR :=
 
-MAJORVERSION := 0
-MINORVERSION ?= 2
-PATCHVERSION := 2
-VERSION ?= ${MAJORVERSION}.${MINORVERSION}.${PATCHVERSION}
+VERSION = $(shell if test -f VERSION; then cat VERSION; else git describe | sed 's/-/./g;s/^v//;'; fi)
 
 LDFLAGS := -ldflags '-s -w -X main.version=${VERSION}'
 MOD := -mod=vendor
@@ -54,3 +51,6 @@ package: release
 clean:
 	rm -rf ${PKGNAME}-*
 	rm -f ${BINNAME}
+
+version:
+	@echo $(VERSION)
