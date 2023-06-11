@@ -15,32 +15,37 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /*
-	LPC checks a hosts block list and add of a given prefix.
+LPC checks a hosts block list and add of a given prefix.
 
-	The Leaky Prefix Checker for domain names that escapes a hosts block
-	list through `www.` prefix.
+The Leaky Prefix Checker for domain names that escapes a hosts block
+list through `www.` prefix.
 
-	Usage:
-		lpc [flags]
-	The flags are:
-		-dns string
-			IP address of the resolver, default to 8.8.8.8.",
-		-in string
-			path to the hosts file, default to stdin.
-		-port string
-			port of the resolver, default to 53
-		-prefix string
-			prefix to check for each hosts entry, default to www.
-		-out string
-			path to the output file, default to stdout.
-		-timeout int64
-			timeout for each DNS query, default to 10s
-		-tgt string
-			target IP address of the blocked entry, default to 0.0.0.0
-		-sleep int64
-			time between DNS query, default to 100ms
-	Example:
-		cat /etc/hosts | lpc
-		lpc -in /etc/hosts -out hosts.tmp
+Usage:
+
+	lpc [flags]
+
+The flags are:
+
+	-dns string
+		IP address of the resolver, default to 8.8.8.8.",
+	-in string
+		path to the hosts file, default to stdin.
+	-port string
+		port of the resolver, default to 53
+	-prefix string
+		prefix to check for each hosts entry, default to www.
+	-out string
+		path to the output file, default to stdout.
+	-timeout int64
+		timeout for each DNS query, default to 10s
+	-tgt string
+		target IP address of the blocked entry, default to 0.0.0.0
+	-sleep int64
+		time between DNS query, default to 100ms
+
+Example:
+
+	cat /etc/hosts | lpc
+	lpc -in /etc/hosts -out hosts.tmp
 */
 package main
