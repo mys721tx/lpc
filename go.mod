@@ -3,7 +3,7 @@ module github.com/mys721tx/lpc
 go 1.22
 
 require (
-	github.com/miekg/dns v1.1.61
+	github.com/miekg/dns v1.1.62
 	github.com/stretchr/testify v1.9.0
 )
 
