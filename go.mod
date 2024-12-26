@@ -2,11 +2,9 @@ module github.com/mys721tx/lpc
 
 go 1.23
 
-toolchain go1.23.4
-
 require (
 	github.com/miekg/dns v1.1.62
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 )
 
 require (
