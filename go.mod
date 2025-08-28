@@ -4,7 +4,7 @@ go 1.24
 
 require (
 	github.com/miekg/dns v1.1.68
-	github.com/stretchr/testify v1.11.0
+	github.com/stretchr/testify v1.11.1
 )
 
 require (
